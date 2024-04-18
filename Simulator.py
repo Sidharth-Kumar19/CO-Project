@@ -219,8 +219,13 @@ def RType(inst):
 # S TYPE INSTRUCTION
 def mem_out(output_file):
   with open(output_file, "a") as obj:
+    count = 1
     for i in addresses:
-      obj.write(i + ":0b" + mem_data[i] + "\n")
+      if(count==32):
+        obj.write(i + ":0b" + mem_data[i])
+      else:
+        obj.write(i + ":0b" + mem_data[i] + "\n")
+        count+=1
 
 
 def SType(inst):
@@ -296,7 +301,7 @@ def IType(inst, pc):
     temp = imm + rs1
     addr = hex(temp)
     addr = addr[0:2] + "000" + addr[2:]
-    reg_data[rd] = mem_data[addr]
+    update_reg(mem_data[addr], rd)
   elif (funct3 == '000' and opcode == '0010011'):  #addi
     #rd = rs + sext(imm[11:0])
     #print(imm)
@@ -306,11 +311,11 @@ def IType(inst, pc):
   elif (funct3 == '011' and opcode == '0010011'):  #sltiu
     #rd = 1. If unsigned(rs) < unsigned(imm)
     if unsigned(reg_data[rs1]) < unsigned(imm):
-      reg_data[rd] = "0" * 31 + "1"
+      update_reg("0" * 31 + "1", rd)
   elif (funct3 == '000' and opcode == '1100111'):  #jalr
     #print("Jalr")
     #print(pc)
-    reg_data[rd] = bin(pc)[2:].zfill(32)
+    update_reg(bin(pc)[2:].zfill(32), rd)
     #print(reg_data[rd])
     #print(add_binary_strings(reg_data[rs1], sign_extension_string(imm, 32)))
     pc = int(add_binary_strings(reg_data[rs1], sign_extension_string(imm, 32)),
@@ -319,6 +324,20 @@ def IType(inst, pc):
     pc &= 0xFFFFFFFE
 
   return pc
+
+
+def UType(inst, PC):
+  imm = inst[0:20]
+  rd = inst[20:25]
+  opcode = inst[25:]
+  if (opcode == '0010111'):  #auipc
+    ans = add_binary_strings((imm + '0' * 12), bin(PC - 4)[2:].zfill(32)) # Taking previous PC else replace PC-4 with PC
+    #ans = add_binary_strings((imm + '0' * 12), bin(PC - 4)[2:].zfill(32))
+    update_reg(ans, rd)
+  elif (opcode == '0110111'):
+    #lui
+    imm = imm + '0' * 12
+    update_reg(imm, rd)
 
 
 def JType(inst, pc):
@@ -372,14 +391,16 @@ l = inst(input_file)
 if (l[-1]
     != "00000000000000000000000001100011"):  # Ending Virtual Halt detection
   sys.exit()
+count = 0
 
-while (program_counter < len(l) * 4 and program_counter >= 0):
+while (program_counter < len(l) * 4 and program_counter >= 0 and count < 200):
+  count += 1
   program_counter += 4
   instruction = l[int((program_counter - 4) / 4)]
   if (instruction == "00000000000000000000000001100011"
       ):  #Virtual Halt in middle
     program_counter -= 4
-    output(str(bin(program_counter)[2:]).zfill(32),output_file )
+    output(str(bin(program_counter)[2:]).zfill(32), output_file)
     break
   #print(instruction, program_counter)
   match (detectType(instruction)):
@@ -398,7 +419,8 @@ while (program_counter < len(l) * 4 and program_counter >= 0):
     case "J":
       #print("JType")
       program_counter = JType(instruction, program_counter)
+    case "U":
+      UType(instruction, program_counter)
 
   output(str(bin(program_counter)[2:]).zfill(32), output_file)
-
 mem_out(output_file)
