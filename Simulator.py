@@ -393,7 +393,7 @@ if (l[-1]
   sys.exit()
 count = 0
 
-while (program_counter < len(l) * 4 and program_counter >= 0 and count < 200):
+while (program_counter < len(l) * 4 and program_counter >= 0 and count < 5000):
   count += 1
   program_counter += 4
   instruction = l[int((program_counter - 4) / 4)]
